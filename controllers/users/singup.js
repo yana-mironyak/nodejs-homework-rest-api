@@ -2,6 +2,8 @@ const { Conflict } = require('http-errors');
 const { User } = require('../../models');
 const gravatar = require('gravatar');
 const bcrypt = require('bcrypt');
+const { sendEmail } = require('../../helpers');
+const { v4: uuidv4 } = require('uuid');
 
 const signup = async(req, res) => {
     const { email, password } = req.body;
@@ -11,7 +13,16 @@ const signup = async(req, res) => {
     }
     const avatarURL = gravatar.url(email);
     const hashPassword = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
-    const result = await User.create({ email, password: hashPassword, avatarURL });
+    const verificationToken = uuidv4();
+    const result = await User.create({ email, password: hashPassword, avatarURL, verificationToken });
+
+    const mail = {
+        to: email,
+        subject: 'Email verification',
+        html: `<a target='_blank' href='http://localhost:3000/api/users/verify/${verificationToken}'>'Click here'</a>`
+    }
+
+    await sendEmail(mail);
 
     res.status(201).json({
         status: "created",
@@ -19,6 +30,7 @@ const signup = async(req, res) => {
         data: {
             email,
             avatarURL,
+            verificationToken,
         }
     })
 };
